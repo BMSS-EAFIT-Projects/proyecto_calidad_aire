@@ -1,0 +1,87 @@
+data {
+  for (k in 1:K) {
+    dummy[k] <- 0
+  }
+}
+
+model {
+
+  # -----------------------------------------------------------
+  # Asignacion de segmento para cada evento d[k]
+  # J[k] = 1 si d[k] < tau[1]
+  # J[k] = 2 si tau[1] <= d[k] < tau[2]
+  # J[k] = 3 si tau[2] <= d[k] < tau[3]
+  # J[k] = 4 si d[k] >= tau[3]
+  # -----------------------------------------------------------
+  for (k in 1:K) {
+    J[k] <- 1 + step(d[k] - tau[1] - 0.5)
+              + step(d[k] - tau[2] - 0.5)
+              + step(d[k] - tau[3] - 0.5)
+  }
+
+  # -----------------------------------------------------------
+  # Recursion de Ozaki — identica al 0CP
+  # delta es global en M1
+  # -----------------------------------------------------------
+  A[1] <- 0
+  for (k in 2:K) {
+    A[k] <- exp(-delta * (d[k] - d[k-1])) * (1 + A[k-1])
+  }
+
+  # -----------------------------------------------------------
+  # Integral Weibull por segmentos — forma cerrada
+  # Segmento 1: (tau[1]/beta[1])^alpha[1]
+  # Segmento 2: (tau[2]/beta[2])^alpha[2] - (tau[1]/beta[2])^alpha[2]
+  # Segmento 3: (tau[3]/beta[3])^alpha[3] - (tau[2]/beta[3])^alpha[3]
+  # Segmento 4: (T/beta[4])^alpha[4]      - (tau[3]/beta[4])^alpha[4]
+  # Total: suma de los cuatro terminos
+  # -----------------------------------------------------------
+  int_weibull_total <- pow(tau[1] / beta[1], alpha[1])
+                     + pow(tau[2] / beta[2], alpha[2])
+                     - pow(tau[1] / beta[2], alpha[2])
+                     + pow(tau[3] / beta[3], alpha[3])
+                     - pow(tau[2] / beta[3], alpha[3])
+                     + pow(T / beta[4], alpha[4])
+                     - pow(tau[3] / beta[4], alpha[4])
+
+  # -----------------------------------------------------------
+  # Log-verosimilitud via zeros trick
+  # -----------------------------------------------------------
+  for (k in 1:K) {
+
+    phi[k] <- -log((alpha[J[k]] / beta[J[k]]) * pow(d[k] / beta[J[k]], alpha[J[k]] - 1)
+                   + eta * A[k])
+              + int_weibull_total / K
+              + n * (1 - exp(-delta * (T - d[k])))
+              + C
+
+    dummy[k] ~ dpois(phi[k])
+
+    phi2[k] <- log((alpha[J[k]] / beta[J[k]]) * pow(d[k] / beta[J[k]], alpha[J[k]] - 1)
+                   + eta * A[k])
+               - int_weibull_total / K
+               - n * (1 - exp(-delta * (T - d[k])))
+  }
+
+  # -----------------------------------------------------------
+  # Parametro derivado
+  # -----------------------------------------------------------
+  eta <- n * delta
+
+  # -----------------------------------------------------------
+  # Previas
+  # Soportes de tau ordenados para garantizar tau[1] < tau[2] < tau[3]
+  # -----------------------------------------------------------
+  tau[1] ~ dunif(0, 365)
+  tau[2] ~ dunif(365, 730)
+  tau[3] ~ dunif(730, 1096)
+
+  for (j in 1:4) {
+    alpha[j] ~ dunif(0, 3)
+    beta[j]  ~ dunif(0, 100)
+  }
+
+  n     ~ dunif(0, 1)
+  delta ~ dunif(0, 1)
+
+}

@@ -1,0 +1,18 @@
+% !TeX root = main.tex
+\begin{table}[htbp]
+\centering
+\caption{Resumen de selecci\'{o}n de modelos: mejor configuraci\'{o}n por contaminante --- NHPP vs Hawkes M1}
+\label{tab:comp_resumen}
+\begin{tabular}{lrrrrlrrrrl}
+\toprule
+Dataset & Best NHPP & WAIC & Best Hawkes & WAIC & Winner (WAIC) & Best NHPP & SDM & Best Hawkes & SDM & Winner (SDM) \\
+\midrule
+PM$_{2.5}$ Colombia 37 --- Bogot\'{a} & 3CP & 1355.26 & 0CP & 1330.19 & \textbf{Hawkes} & 3CP & 6.7067 & 0CP & 3.7526 & \textbf{Hawkes} \\
+PM$_{2.5}$ Colombia 37 --- Medell\'{i}n & 3CP & 1147.82 & 0CP & 1134.37 & \textbf{Hawkes} & 3CP & 8.5448 & 0CP & 6.2876 & \textbf{Hawkes} \\
+PM$_{2.5}$ WHO 25 --- Bogot\'{a} & 2CP & 2093.32 & 2CP & 2100.55 & \textbf{NHPP} & 3CP & 5.7445 & 0CP & 5.6919 & \textbf{Hawkes} \\
+PM$_{2.5}$ WHO 25 --- Medell\'{i}n & 2CP & 2091.74 & 2CP & 2095.07 & \textbf{NHPP} & 2CP & 5.1739 & 0CP & 6.2487 & \textbf{NHPP} \\
+\bottomrule
+\\[-0.5em]
+\multicolumn{11}{l}{\footnotesize Se reporta el n\'{u}mero de puntos de cambio del mejor modelo dentro de cada familia y la m\'{e}trica correspondiente. El ganador se determina comparando los mejores modelos de cada familia.}
+\end{tabular}
+\end{table}

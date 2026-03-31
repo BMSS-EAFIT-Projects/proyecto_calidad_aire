@@ -1,0 +1,17 @@
+data{for(i in 1:K){
+dummy[i] <- 0}
+}
+
+model{
+for (i in 1:K) {
+phi[i] <- -log(L[i])
+phi2[i] <- -phi[i]
+dummy[i] ~ dpois(phi[i])
+log(lambda[i]) <-  log( (alpha/beta) * pow(d[i]/beta,alpha-1) )
+L[i] <- lambda[i]*F
+m[i]<-pow(d[i]/beta,alpha)
+}
+F <-  exp(-pow(T/beta,alpha)/K)
+alpha ~ dunif(0,3)
+beta ~ dunif(0,100)
+}

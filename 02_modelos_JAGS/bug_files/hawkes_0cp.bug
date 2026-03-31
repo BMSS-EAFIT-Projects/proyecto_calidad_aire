@@ -1,0 +1,56 @@
+data {
+  for (k in 1:K) {
+    dummy[k] <- 0
+  }
+}
+
+model {
+
+  # -----------------------------------------------------------
+  # Recursion de Ozaki: A[k] = sum_{d_i < d_k} exp(-delta*(d_k - d_i))
+  # A[1] = 0 porque no hay eventos anteriores al primero
+  # A[k] = exp(-delta*(d[k]-d[k-1])) * (1 + A[k-1])  para k >= 2
+  # -----------------------------------------------------------
+  A[1] <- 0
+  for (k in 2:K) {
+    A[k] <- exp(-delta * (d[k] - d[k-1])) * (1 + A[k-1])
+  }
+
+  # -----------------------------------------------------------
+  # Log-verosimilitud via zeros trick
+  # phi[k] = -log(lambda(d_k | H_{d_k}))
+  #          + (1/K) * integral_baseline
+  #          + n * (1 - exp(-delta*(T - d_k)))   <- integral kernel por evento
+  # -----------------------------------------------------------
+  for (k in 1:K) {
+
+    # Todo inline para evitar redefinicion de nodos en JAGS
+    phi[k] <- -log((alpha / beta) * pow(d[k] / beta, alpha - 1) + eta * A[k])
+              + pow(T / beta, alpha) / K
+              + n * (1 - exp(-delta * (T - d[k])))
+              + C
+
+    dummy[k] ~ dpois(phi[k])
+
+    # phi2 para WAIC: log-verosimilitud individual por observacion
+    phi2[k] <- log((alpha / beta) * pow(d[k] / beta, alpha - 1) + eta * A[k])
+               - pow(T / beta, alpha) / K
+               - n * (1 - exp(-delta * (T - d[k])))
+  }
+
+  # -----------------------------------------------------------
+  # Parametros derivados
+  # eta = n * delta  (garantiza branching ratio n = eta/delta < 1)
+  # -----------------------------------------------------------
+  eta <- n * delta
+
+  # -----------------------------------------------------------
+  # Previas — estilo uniforme no informativo consistente
+  # con el articulo publicado
+  # -----------------------------------------------------------
+  alpha ~ dunif(0, 3)
+  beta  ~ dunif(0, 100)
+  n     ~ dunif(0, 1)
+  delta ~ dunif(0, 1)
+
+}

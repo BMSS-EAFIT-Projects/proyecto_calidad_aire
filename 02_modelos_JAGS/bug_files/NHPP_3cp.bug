@@ -1,0 +1,44 @@
+
+data{for(i in 1:K){
+dummy[i] <- 0}
+}
+
+model{
+for (i in 1:K) {
+phi[i] <- -log(L[i])
+phi2[i] <- -phi[i]
+dummy[i] ~ dpois(phi[i])
+log(lambda[i]) <-  log((alpha[J[i]]/beta[J[i]])
+*pow(d[i]/beta[J[i]],alpha[J[i]]-1))
+L[i] <- lambda[i]*F
+J[i] <- 1 + step(d[i] - tau[1] - 0.5)+ step(d[i] - tau[2]
+- 0.5) +step(d[i] - tau[3] - 0.5)
+
+m[i] <- step(-(d[i] - tau[1] - 0.5))*pow(d[i]/beta[1],alpha[1])
++step(d[i] - tau[1] - 0.5)*step(-(d[i] - tau[2] - 0.5))
+*(pow(d[i]/beta[2],alpha[2])
++pow(tau[1]/beta[1],alpha[1])-pow(tau[1]/beta[2],alpha[2]))
++step(d[i] - tau[2] - 0.5)*step(-(d[i] - tau[3] - 0.5))*(pow(d[i]/beta[3],alpha[3])
++pow(tau[2]/beta[2],alpha[2])+pow(tau[1]/beta[1],alpha[1])
+-pow(tau[1]/beta[2],alpha[2])-pow(tau[2]/beta[3],alpha[3]))
++step(d[i] - tau[3] - 0.5)*(pow(d[i]/beta[4],alpha[4])
++pow(tau[2]/beta[2],alpha[2]) + pow(tau[3]/beta[3],alpha[3])
++pow(tau[1]/beta[1],alpha[1]) - pow(tau[3]/beta[4],alpha[4])
+- pow(tau[1]/beta[2],alpha[2]) - pow(tau[2]/beta[3],alpha[3]))
+}
+
+F <-  exp((-pow(tau[1]/beta[1],alpha[1])
+- pow(tau[2]/beta[2],alpha[2]) + pow(tau[1]/beta[2],alpha[2])
+- pow(tau[3]/beta[3],alpha[3]) + pow(tau[2]/beta[3],alpha[3])
+- pow(T/beta[4],alpha[4])
++ pow(tau[3]/beta[4],alpha[4]))/K)
+
+tau[1] ~ dunif(0,365)
+tau[2] ~ dunif(365,730)
+tau[3] ~ dunif(730,1096)
+
+for(i in 1:4){
+alpha[i] ~ dunif(0,3)
+beta[i] ~ dunif(0,100)
+}
+}

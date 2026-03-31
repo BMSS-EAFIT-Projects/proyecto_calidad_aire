@@ -1,0 +1,18 @@
+% !TeX root = main.tex
+\begin{table}[htbp]
+\centering
+\caption{WAIC comparativo NHPP vs Hawkes M1 por n\'{u}mero de puntos de cambio}
+\label{tab:comp_waic}
+\begin{tabular}{lrrrrrrrr}
+\toprule
+Dataset & NHPP 0\,CP & NHPP 1\,CP & NHPP 2\,CP & NHPP 3\,CP & Hawkes 0\,CP & Hawkes 1\,CP & Hawkes 2\,CP & Hawkes 3\,CP \\
+\midrule
+PM$_{2.5}$ Colombia 37 --- Bogot\'{a} & 1456.14 & 1432.48 & 1387.97 & 1355.26 & 1330.19 & 1334.02 & 1333.46 & 1335.42 \\
+PM$_{2.5}$ Colombia 37 --- Medell\'{i}n & 1279.39 & 1272.35 & 1220.72 & 1147.82 & 1134.37 & 1138.58 & 1138.96 & 1137.99 \\
+PM$_{2.5}$ WHO 25 --- Bogot\'{a} & 2123.58 & 2122.92 & 2093.32 & 2095.06 & 2111.03 & 2116.10 & 2100.55 & 2118.41 \\
+PM$_{2.5}$ WHO 25 --- Medell\'{i}n & 2115.29 & 2116.13 & 2091.74 & 2097.76 & 2111.87 & 2118.11 & 2095.07 & 2116.10 \\
+\bottomrule
+\\[-0.5em]
+\multicolumn{9}{l}{\footnotesize El DIC no se reporta para el modelo Hawkes por incompatibilidad debida al \textit{zeros trick}.}
+\end{tabular}
+\end{table}
