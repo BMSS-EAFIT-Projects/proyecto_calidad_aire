@@ -1,16 +1,5 @@
-# =============================================================================
 # Visualización Hawkes M1 - 0 Change Points
-# Requiere: samples_hawkes0 y samples_NHPP0 cargados en el entorno
-# Produce:
-#   1. Intensidad condicional completa lambda(t | H_t)
-#   2. Baseline Weibull mu(t) — NHPP vs Hawkes
-#   3. M(t) observada vs Hawkes con bandas de credibilidad
-#   4. M(t) observada vs NHPP vs Hawkes con bandas de credibilidad
-# =============================================================================
 
-# -----------------------------------------------------------------------------
-# Auxiliar: lambda(t | H_t) puntual — solo para plot de intensidad
-# -----------------------------------------------------------------------------
 calc_lambda_hawkes <- function(t_grid, d, alpha, beta, n, delta) {
   eta <- n * delta
   sapply(t_grid, function(ti) {
@@ -134,7 +123,8 @@ plot_lambda_hawkes <- function(n_modelo,
   if (mostrar_eventos)
     rug(d, col = adjustcolor(col_eventos, alpha.f = 0.4), ticksize = 0.03)
   legend("topright",
-         legend = c("lambda(t | H_t)", "mu(t) baseline"),
+         legend = c(expression(lambda^"*"*(t*"|"*H[t])),
+                    expression(mu(t)~"baseline")),
          col    = c(col_lambda, col_mu),
          lty    = c("solid", "dashed"),
          lwd    = c(lwd_lambda, 1), cex = 0.8)
@@ -247,7 +237,7 @@ plot_acumulada_comparacion <- function(n_modelo,
   # --- NHPP ---
   su_nhpp <- samples_nhpp[[n_modelo]]$BUGSoutput$summary
   sl_nhpp <- samples_nhpp[[n_modelo]]$BUGSoutput$sims.list
-
+  
   usar_summary_m <- TRUE
   banda_nhpp <- tryCatch(
     extract_M_nhpp_from_summary(su_nhpp),
@@ -256,7 +246,7 @@ plot_acumulada_comparacion <- function(n_modelo,
       NULL
     }
   )
-
+  
   if (usar_summary_m) {
     cat(sprintf("Usando m del summary para NHPP modelo %d.\n", n_modelo))
   } else {
@@ -268,7 +258,7 @@ plot_acumulada_comparacion <- function(n_modelo,
   # --- Hawkes ---
   su_hwk <- samples_hawkes[[n_modelo]]$BUGSoutput$summary
   sl_hwk <- samples_hawkes[[n_modelo]]$BUGSoutput$sims.list
-
+  
   cat(sprintf("Calculando bandas Hawkes modelo %d...\n", n_modelo))
   banda_hwk <- calc_M_hawkes_banda(t_grid, d,
                                    sl_hwk$alpha, sl_hwk$beta,
@@ -327,52 +317,68 @@ dir_out <- "08_resultados_graficas/nhpp_vs_hawkes_0cp"
 y_names <- c("PM2.5 Col 37 Bog", "PM2.5 Col 37 Med",
              "PM2.5 WHO 25 Bog", "PM2.5 WHO 25 Med")
 
-# -----------------------------------------------------------------------------
-# 1. Intensidad condicional lambda(t | H_t) — panel 2x2
-# -----------------------------------------------------------------------------
-png(file.path(dir_out, "lambda_hawkes_0cp.png"),
-    width = 2400, height = 1800, res = 200)
-par(mfrow = c(2, 2), mar = c(4, 4, 2, 1))
-for (i in 1:4) {
-  plot_lambda_hawkes(n_modelo = i, di = di, y_name = y_names[i], grilla_paso = 5)
-}
-par(mfrow = c(1, 1))
-dev.off()
+# Índices por umbral
+idx_col <- 1:2   # Col 37
+idx_who <- 3:4   # WHO 25
 
 # -----------------------------------------------------------------------------
-# 2. Comparacion baseline mu(t): NHPP vs Hawkes — panel 2x2
+# 1. Intensidad condicional lambda(t | H_t) — par Col y par WHO
 # -----------------------------------------------------------------------------
-png(file.path(dir_out, "baseline_nhpp_vs_hawkes_0cp.png"),
-    width = 2400, height = 1800, res = 200)
-par(mfrow = c(2, 2), mar = c(4, 4, 2, 1))
-for (i in 1:4) {
-  plot_baseline_comparison(n_modelo = i, y_name = y_names[i])
-}
-par(mfrow = c(1, 1))
-dev.off()
+png(file.path(dir_out, "lambda_hawkes_0cp_col.png"),
+    width = 2400, height = 900, res = 200)
+par(mfrow = c(1, 2), mar = c(4, 4, 2, 1))
+for (i in idx_col) plot_lambda_hawkes(n_modelo = i, di = di, y_name = y_names[i], grilla_paso = 5)
+par(mfrow = c(1, 1)); dev.off()
+
+png(file.path(dir_out, "lambda_hawkes_0cp_who.png"),
+    width = 2400, height = 900, res = 200)
+par(mfrow = c(1, 2), mar = c(4, 4, 2, 1))
+for (i in idx_who) plot_lambda_hawkes(n_modelo = i, di = di, y_name = y_names[i], grilla_paso = 5)
+par(mfrow = c(1, 1)); dev.off()
 
 # -----------------------------------------------------------------------------
-# 3. M(t) Hawkes con bandas de credibilidad — panel 2x2
+# 2. Comparacion baseline mu(t): NHPP vs Hawkes — par Col y par WHO
 # -----------------------------------------------------------------------------
-png(file.path(dir_out, "acumulada_hawkes_0cp.png"),
-    width = 2400, height = 1800, res = 200)
-par(mfrow = c(2, 2), mar = c(4, 4, 2, 1))
-for (i in 1:4) {
-  plot_acumulada_hawkes(n_modelo = i, di = di, y_name = y_names[i])
-}
-par(mfrow = c(1, 1))
-dev.off()
+png(file.path(dir_out, "baseline_nhpp_vs_hawkes_0cp_col.png"),
+    width = 2400, height = 900, res = 200)
+par(mfrow = c(1, 2), mar = c(4, 4, 2, 1))
+for (i in idx_col) plot_baseline_comparison(n_modelo = i, y_name = y_names[i])
+par(mfrow = c(1, 1)); dev.off()
+
+png(file.path(dir_out, "baseline_nhpp_vs_hawkes_0cp_who.png"),
+    width = 2400, height = 900, res = 200)
+par(mfrow = c(1, 2), mar = c(4, 4, 2, 1))
+for (i in idx_who) plot_baseline_comparison(n_modelo = i, y_name = y_names[i])
+par(mfrow = c(1, 1)); dev.off()
 
 # -----------------------------------------------------------------------------
-# 4. Comparacion M(t) NHPP vs Hawkes — ambos con bandas — panel 2x2
+# 3. M(t) Hawkes con bandas de credibilidad — par Col y par WHO
 # -----------------------------------------------------------------------------
-png(file.path(dir_out, "comparacion_Mt_nhpp_vs_hawkes_0cp.png"),
-    width = 2400, height = 1800, res = 200)
-par(mfrow = c(2, 2), mar = c(4, 4, 2, 1))
-for (i in 1:4) {
-  plot_acumulada_comparacion(n_modelo = i, di = di, y_name = y_names[i])
-}
-par(mfrow = c(1, 1))
-dev.off()
+png(file.path(dir_out, "acumulada_hawkes_0cp_col.png"),
+    width = 2400, height = 900, res = 200)
+par(mfrow = c(1, 2), mar = c(4, 4, 2, 1))
+for (i in idx_col) plot_acumulada_hawkes(n_modelo = i, di = di, y_name = y_names[i])
+par(mfrow = c(1, 1)); dev.off()
+
+png(file.path(dir_out, "acumulada_hawkes_0cp_who.png"),
+    width = 2400, height = 900, res = 200)
+par(mfrow = c(1, 2), mar = c(4, 4, 2, 1))
+for (i in idx_who) plot_acumulada_hawkes(n_modelo = i, di = di, y_name = y_names[i])
+par(mfrow = c(1, 1)); dev.off()
+
+# -----------------------------------------------------------------------------
+# 4. Comparacion M(t) NHPP vs Hawkes — ambos con bandas — par Col y par WHO
+# -----------------------------------------------------------------------------
+png(file.path(dir_out, "comparacion_Mt_nhpp_vs_hawkes_0cp_col.png"),
+    width = 2400, height = 900, res = 200)
+par(mfrow = c(1, 2), mar = c(4, 4, 2, 1))
+for (i in idx_col) plot_acumulada_comparacion(n_modelo = i, di = di, y_name = y_names[i])
+par(mfrow = c(1, 1)); dev.off()
+
+png(file.path(dir_out, "comparacion_Mt_nhpp_vs_hawkes_0cp_who.png"),
+    width = 2400, height = 900, res = 200)
+par(mfrow = c(1, 2), mar = c(4, 4, 2, 1))
+for (i in idx_who) plot_acumulada_comparacion(n_modelo = i, di = di, y_name = y_names[i])
+par(mfrow = c(1, 1)); dev.off()
 
 cat("\nGraficas guardadas en:", dir_out, "\n")

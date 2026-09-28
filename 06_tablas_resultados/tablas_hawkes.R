@@ -1,14 +1,3 @@
-# =============================================================================
-# Tablas de resultados — Hawkes M1
-# Requiere: samples_hawkes0, samples_hawkes1, samples_hawkes2, samples_hawkes3
-# Produce tablas .tex con convencion booktabs/longtable del articulo base:
-#   1. Tabla de parametros (Model | Parameters | Prior | Mean | SD | CI 95%)
-#      alpha/beta por segmento + tau + n, delta, eta globales
-#   2. Tabla WAIC (DIC excluido — incompatible con NHPP)
-#   3. Tabla SDM
-#   4. Tabla vida media del kernel log(2)/delta
-# =============================================================================
-
 library(loo)
 
 load("hawkes_0cp.RData")
@@ -110,6 +99,62 @@ write_longtable <- function(caption, label, col_def, header, body, path) {
 }
 
 # =============================================================================
+# HELPER: M(t) con puntos de cambio y correccion de continuidad
+# Identica a calc_M_hawkes_cp del script de predictivas.
+# Para 0CP: alpha_vec y beta_vec son vectores de longitud 1, tau_vec = numeric(0)
+# =============================================================================
+
+calc_M_hawkes_cp <- function(t_eval, d_hist, alpha_vec, beta_vec,
+                             tau_vec, eta, delta) {
+  n_seg_loc <- length(alpha_vec)
+  
+  M_single <- function(tt) {
+    # --- Segmento al que pertenece tt ---
+    if (n_seg_loc == 1) {
+      seg <- 1
+    } else {
+      seg <- min(findInterval(tt, c(0, tau_vec, Inf)), n_seg_loc)
+    }
+    
+    # --- Parte Weibull con correccion de continuidad ---
+    if (seg == 1) {
+      w <- (tt / beta_vec[1])^alpha_vec[1]
+    } else if (seg == 2) {
+      m_tau1 <- (tau_vec[1] / beta_vec[1])^alpha_vec[1]
+      w <- m_tau1 +
+        (tt         / beta_vec[2])^alpha_vec[2] -
+        (tau_vec[1] / beta_vec[2])^alpha_vec[2]
+    } else if (seg == 3) {
+      m_tau1 <- (tau_vec[1] / beta_vec[1])^alpha_vec[1]
+      d2     <- (tau_vec[2] / beta_vec[2])^alpha_vec[2] -
+        (tau_vec[1] / beta_vec[2])^alpha_vec[2]
+      w <- m_tau1 + d2 +
+        (tt         / beta_vec[3])^alpha_vec[3] -
+        (tau_vec[2] / beta_vec[3])^alpha_vec[3]
+    } else {  # seg == 4  (3CP)
+      m_tau1 <- (tau_vec[1] / beta_vec[1])^alpha_vec[1]
+      d2     <- (tau_vec[2] / beta_vec[2])^alpha_vec[2] -
+        (tau_vec[1] / beta_vec[2])^alpha_vec[2]
+      d3     <- (tau_vec[3] / beta_vec[3])^alpha_vec[3] -
+        (tau_vec[2] / beta_vec[3])^alpha_vec[3]
+      w <- m_tau1 + d2 + d3 +
+        (tt         / beta_vec[4])^alpha_vec[4] -
+        (tau_vec[3] / beta_vec[4])^alpha_vec[4]
+    }
+    
+    # --- Parte Hawkes (kernel exponencial) ---
+    prev        <- d_hist[d_hist < tt]
+    hawkes_part <- if (length(prev) > 0)
+      (eta / delta) * sum(1 - exp(-delta * (tt - prev)))
+    else 0
+    
+    w + hawkes_part
+  }
+  
+  sapply(t_eval, M_single)
+}
+
+# =============================================================================
 # 1. Tabla de parametros — longtable, convencion articulo base
 # =============================================================================
 
@@ -152,11 +197,10 @@ for (cp in 1:4) {
       }
     }
     
-    # Parametros globales del kernel Hawkes
     for (par_info in list(
-      list(pat = "^n$",     tex = "$n$",      prior = prior_n),
-      list(pat = "^delta$", tex = "$\\delta$", prior = prior_delta),
-      list(pat = "^eta$",   tex = "$\\eta$",   prior = "derivado: $n \\cdot \\delta$"))) {
+      list(pat = "^n$",     tex = "$n$",       prior = prior_n),
+      list(pat = "^delta$", tex = "$\\delta$",  prior = prior_delta),
+      list(pat = "^eta$",   tex = "$\\eta$",    prior = "derivado: $n \\cdot \\delta$"))) {
       p_rows <- su[grep(par_info$pat, rownames(su)), , drop = FALSE]
       if (nrow(p_rows) > 0)
         body <- c(body, emit("", par_info$tex, par_info$prior, p_rows))
@@ -177,7 +221,7 @@ for (cp in 1:4) {
 }
 
 # =============================================================================
-# 2. Tabla WAIC (DIC excluido — incompatible por zeros trick)
+# 2. Tabla WAIC
 # =============================================================================
 
 WAIC_mat <- matrix(NA, 4, 4)
@@ -195,13 +239,12 @@ for (cp in 1:4)
       paste(sprintf("%.2f", WAIC_mat[mod, ]), collapse = " & ") %+% " \\\\")
   
   write_tabular(
-    caption  = "WAIC por modelo y n\\'{u}mero de puntos de cambio --- Hawkes M1",
-    label    = "tab:hawkes_waic",
-    col_def  = "lrrrr",
-    header   = header,
-    body     = body,
-    footnote = "El DIC no se reporta para el proceso de Hawkes por incompatibilidad con el NHPP debida a la constante $C$ del \\textit{zeros trick} (diferencia sistem\\'{a}tica de $2KC$ en la devianza).",
-    path     = base_dir %+% "/WAIC_hawkes_todos.tex"
+    caption = "WAIC por modelo y n\\'{u}mero de puntos de cambio --- Hawkes M1",
+    label   = "tab:hawkes_waic",
+    col_def = "lrrrr",
+    header  = header,
+    body    = body,
+    path    = base_dir %+% "/WAIC_hawkes_todos.tex"
   )
   
   for (cp in 1:4) {
@@ -209,78 +252,123 @@ for (cp in 1:4)
     body_cp <- sapply(1:4, function(mod)
       d_labels_tex[mod] %+% " & " %+% sprintf("%.2f", WAIC_mat[mod, cp]) %+% " \\\\")
     write_tabular(
-      caption  = "WAIC --- Hawkes M1 " %+% ncp %+% "CP",
-      label    = "tab:hawkes_waic_" %+% ncp %+% "cp",
-      col_def  = "lr",
-      header   = "Dataset & WAIC (" %+% ncp %+% "\\,CP) \\\\",
-      body     = body_cp,
-      path     = cp_dirs[cp] %+% "/WAIC_hawkes_" %+% ncp %+% "cp.tex"
+      caption = "WAIC --- Hawkes M1 " %+% ncp %+% "CP",
+      label   = "tab:hawkes_waic_" %+% ncp %+% "cp",
+      col_def = "lr",
+      header  = "Dataset & WAIC (" %+% ncp %+% "\\,CP) \\\\",
+      body    = body_cp,
+      path    = cp_dirs[cp] %+% "/WAIC_hawkes_" %+% ncp %+% "cp.tex"
     )
   }
 }
 
 # =============================================================================
-# 3. Tabla SDM — calculo externo via sims.list (M(t) forma cerrada)
-# M(t) = (t/beta)^alpha + (eta/delta) * sum_{d_k<t}(1 - exp(-delta*(t-d_k)))
-# Se propaga la incertidumbre MCMC y se toma la media posterior de M(t_i)
+# 3. Tabla DIC
 # =============================================================================
 
-# Funcion auxiliar: media posterior de M(t) en los tiempos de evento
-# Itera sobre n_sims muestras MCMC para propagar incertidumbre
-calc_sdm_hawkes <- function(d, sl, n_seg_mod) {
-  # sl: sims.list del modelo
-  # n_seg_mod: numero de segmentos (1 para 0CP, 2 para 1CP, etc.)
-  n_sims <- length(sl$n)
-  acum   <- sapply(1:t_total, function(i) sum(d <= i))
+DIC_mat <- matrix(NA, 4, 4)
+for (cp in 1:4)
+  for (mod in 1:4)
+    DIC_mat[mod, cp] <- round(
+      samples_list[[cp]][[mod]]$BUGSoutput$DIC, 2)
+
+{
+  header <- "Dataset & 0\\,CP & 1\\,CP & 2\\,CP & 3\\,CP \\\\"
+  body   <- sapply(1:4, function(mod)
+    d_labels_tex[mod] %+% " & " %+%
+      paste(sprintf("%.2f", DIC_mat[mod, ]), collapse = " & ") %+% " \\\\")
   
-  # Matriz: filas = simulaciones, columnas = tiempos de evento d
-  m_matrix <- matrix(NA, nrow = n_sims, ncol = length(d))
+  write_tabular(
+    caption = "DIC por modelo y n\\'{u}mero de puntos de cambio --- Hawkes M1",
+    label   = "tab:hawkes_dic",
+    col_def = "lrrrr",
+    header  = header,
+    body    = body,
+    path    = base_dir %+% "/DIC_hawkes_todos.tex"
+  )
+  
+  for (cp in 1:4) {
+    ncp <- cp - 1
+    body_cp <- sapply(1:4, function(mod)
+      d_labels_tex[mod] %+% " & " %+% sprintf("%.2f", DIC_mat[mod, cp]) %+% " \\\\")
+    write_tabular(
+      caption = "DIC --- Hawkes M1 " %+% ncp %+% "CP",
+      label   = "tab:hawkes_dic_" %+% ncp %+% "cp",
+      col_def = "lr",
+      header  = "Dataset & DIC (" %+% ncp %+% "\\,CP) \\\\",
+      body    = body_cp,
+      path    = cp_dirs[cp] %+% "/DIC_hawkes_" %+% ncp %+% "cp.tex"
+    )
+  }
+    }
+
+# =============================================================================
+# 5. Tabla SDM — CORREGIDO: usa calc_M_hawkes_cp con correccion de continuidad
+#    SDM = (1/K) * sum_i |N(t_i) - M_hat(t_i)|
+#    donde M_hat(t_i) es la media posterior del compensador evaluada
+#    en cada tiempo de evento, propagando correctamente los puntos de cambio.
+# =============================================================================
+
+calc_sdm_hawkes <- function(d, sl, n_cp) {
+  n_sims    <- length(sl$n)
+  n_seg_loc <- n_cp + 1
+  K         <- length(d)
+  
+  # N(t_i) = rango del evento i-esimo = i (eventos ordenados)
+  acum_eventos <- seq_len(K)
+  
+  # Matriz de M(t_i) para cada muestra MCMC
+  m_matrix <- matrix(NA, nrow = n_sims, ncol = K)
   
   for (s in 1:n_sims) {
-    # Extraer alpha y beta de la simulacion s
-    # Para 0CP son vectores; para CP>0 son matrices [sim, segmento]
-    if (n_seg_mod == 1) {
-      alpha_s <- if (is.matrix(sl$alpha)) sl$alpha[s, 1] else sl$alpha[s]
-      beta_s  <- if (is.matrix(sl$beta))  sl$beta[s,  1] else sl$beta[s]
+    # Extraer parametros de la muestra s
+    if (n_seg_loc == 1) {
+      alpha_s <- as.numeric(if (is.matrix(sl$alpha)) sl$alpha[s, ] else sl$alpha[s])
+      beta_s  <- as.numeric(if (is.matrix(sl$beta))  sl$beta[s,  ] else sl$beta[s])
     } else {
-      # Para modelos con CP usamos el alpha/beta del ultimo segmento
-      # como aproximacion global para el calculo del SDM externo.
-      # El compensador exacto por regimenes requeriria integrar por tramos,
-      # lo que es computacionalmente costoso. Esta aproximacion es coherente
-      # con el uso de la media posterior de alpha y beta en el script de graficas.
-      alpha_s <- sl$alpha[s, n_seg_mod]
-      beta_s  <- sl$beta[s,  n_seg_mod]
+      alpha_s <- as.numeric(sl$alpha[s, ])   # vector de longitud n_seg_loc
+      beta_s  <- as.numeric(sl$beta[s,  ])
     }
+    
     eta_s   <- sl$n[s] * sl$delta[s]
     delta_s <- sl$delta[s]
     
-    m_matrix[s, ] <- sapply(d, function(tt) {
-      prev <- d[d < tt]
-      (tt / beta_s)^alpha_s +
-        if (length(prev) > 0)
-          (eta_s / delta_s) * sum(1 - exp(-delta_s * (tt - prev)))
-      else 0
-    })
+    tau_s <- if (n_cp == 0) {
+      numeric(0)
+    } else if (is.matrix(sl$tau)) {
+      as.numeric(sl$tau[s, ])
+    } else {
+      as.numeric(sl$tau[s])
+    }
+    
+    # Evaluar M(t_i) para todos los eventos usando la funcion con CP y
+    # correccion de continuidad
+    m_matrix[s, ] <- calc_M_hawkes_cp(
+      t_eval    = d,
+      d_hist    = d,
+      alpha_vec = alpha_s,
+      beta_vec  = beta_s,
+      tau_vec   = tau_s,
+      eta       = eta_s,
+      delta     = delta_s
+    )
   }
   
-  # Media posterior de M(t_i) para cada tiempo de evento
-  mm_mean <- colMeans(m_matrix)
-  
-  # SDM = (1/K) * sum |N(t_i) - M_hat(t_i)|
-  round(sum(abs(acum[d] - mm_mean)) / length(d), 4)
+  # Media posterior de M(t_i) y SDM
+  m_mean <- colMeans(m_matrix)
+  round(mean(abs(acum_eventos - m_mean)), 4)
 }
 
-cat("Calculando SDM Hawkes (metodo externo via sims.list)...\n")
-cat("Esto puede tardar varios minutos por modelo.\n")
+cat("Calculando SDM Hawkes (corregido con calc_M_hawkes_cp)...\n")
 
 SDM_mat <- matrix(NA, 4, 4)
 for (cp in 1:4) {
-  n_seg_mod <- cp  # 0CP -> 1 seg, 1CP -> 2 seg, etc.
+  n_cp_loc <- cp - 1
   for (mod in 1:4) {
     d  <- di[[mod]]
     sl <- samples_list[[cp]][[mod]]$BUGSoutput$sims.list
-    cat(sprintf("  SDM Hawkes %dCP | mod %d...\n", cp - 1, mod))
-    SDM_mat[mod, cp] <- calc_sdm_hawkes(d, sl, n_seg_mod)
+    cat(sprintf("  SDM Hawkes %dCP | mod %d...\n", n_cp_loc, mod))
+    SDM_mat[mod, cp] <- calc_sdm_hawkes(d, sl, n_cp_loc)
   }
 }
 
@@ -315,7 +403,64 @@ for (cp in 1:4) {
 }
 
 # =============================================================================
-# 4. Tabla vida media del kernel: log(2)/delta
+# 4. Tabla combinada WAIC + DIC + SDM
+# =============================================================================
+
+build_combined_tables <- function(WAIC_mat, DIC_mat, SDM_mat) {
+  
+  header_comb <- "Dataset & CP & DIC & WAIC & SDM \\\\"
+  
+  body_comb <- character(0)
+  for (mod in 1:4) {
+    first <- TRUE
+    for (cp in 1:4) {
+      ncp   <- cp - 1
+      mc    <- if (first) d_labels_tex[mod] else ""
+      first <- FALSE
+      body_comb <- c(body_comb,
+                     mc %+% " & " %+% ncp %+% "\\,CP & " %+%
+                       sprintf("%.2f",  DIC_mat[mod,  cp]) %+% " & " %+%
+                       sprintf("%.2f",  WAIC_mat[mod, cp]) %+% " & " %+%
+                       sprintf("%.4f",  SDM_mat[mod,  cp]) %+% " \\\\"
+      )
+    }
+    body_comb <- c(body_comb, "\\midrule")
+  }
+  body_comb <- body_comb[-length(body_comb)]
+  
+  write_tabular(
+    caption = "Criterios de comparaci\\'{o}n de modelos: WAIC, DIC y SDM --- Hawkes M1",
+    label   = "tab:hawkes_criterios",
+    col_def = "llrrr",
+    header  = header_comb,
+    body    = body_comb,
+    path    = base_dir %+% "/criterios_hawkes_todos.tex"
+  )
+  
+  for (cp in 1:4) {
+    ncp      <- cp - 1
+    body_cp  <- sapply(1:4, function(mod)
+      d_labels_tex[mod] %+% " & " %+%
+        sprintf("%.2f",  DIC_mat[mod,  cp]) %+% " & " %+%
+        sprintf("%.2f",  WAIC_mat[mod, cp]) %+% " & " %+%
+        sprintf("%.4f",  SDM_mat[mod,  cp]) %+% " \\\\"
+    )
+    write_tabular(
+      caption = "Criterios de comparaci\\'{o}n: WAIC, DIC y SDM --- Hawkes M1 " %+%
+        ncp %+% "CP",
+      label   = "tab:hawkes_criterios_" %+% ncp %+% "cp",
+      col_def = "lrrr",
+      header  = "Dataset & DIC & WAIC & SDM \\\\",
+      body    = body_cp,
+      path    = cp_dirs[cp] %+% "/criterios_hawkes_" %+% ncp %+% "cp.tex"
+    )
+  }
+}
+
+build_combined_tables(WAIC_mat, DIC_mat, SDM_mat)
+
+# =============================================================================
+# 6. Tabla vida media del kernel: log(2)/delta
 # =============================================================================
 
 VM_mat <- matrix(NA, 4, 4)

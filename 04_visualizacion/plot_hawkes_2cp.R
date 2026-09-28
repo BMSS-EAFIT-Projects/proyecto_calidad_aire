@@ -1,15 +1,5 @@
-# =============================================================================
 # Visualización Hawkes M3 - 2 Change Points  [CORREGIDO]
-# =============================================================================
-# CONVENCIÓN DE TIEMPO (corrección aplicada):
-#   BUGS estima beta[k] con tiempo ABSOLUTO en todos los segmentos:
-#     Seg 1: (tau[1]/beta[1])^alpha[1]
-#     Seg 2: (tau[2]/beta[2])^alpha[2] - (tau[1]/beta[2])^alpha[2]
-#     Seg 3: (T/beta[3])^alpha[3]      - (tau[2]/beta[3])^alpha[3]
-#   En R se usa la misma convención:
-#     M_k(t) = (t_end/beta[k])^alpha[k] - (lo[k]/beta[k])^alpha[k]
-#   mu_k(t) = (alpha[k]/beta[k]) * (t/beta[k])^(alpha[k]-1)  [t absoluto]
-# =============================================================================
+
 
 .seg_lo_2cp <- function(tau) c(0, tau[1], tau[2])
 .seg_hi_2cp <- function(tau) c(tau[1], tau[2], Inf)
@@ -160,7 +150,7 @@ plot_lambda_hawkes_2cp <- function(n_modelo,
   abline(v=tau, col=col_cp, lty="dotted", lwd=1.5)
   if (mostrar_eventos)
     rug(d, col=adjustcolor(col_eventos, alpha.f=0.4), ticksize=0.03)
-  legend("topright", legend=c("lambda(t | H_t)","mu(t) baseline","CP tau1/tau2"),
+  legend("topright", legend=c(expression(lambda^"*"*(t*"|"*H[t])),expression(mu(t)~"baseline"),expression("CP"~tau[1]*"/"*tau[2])),
          col=c(col_lambda,col_mu,col_cp),
          lty=c("solid","dashed","dotted"), lwd=c(lwd_lambda,1,1.5), cex=0.8)
 }
@@ -192,7 +182,7 @@ plot_baseline_comparison_2cp <- function(n_modelo,
        ylim=c(0, max(c(mu_nhpp,mu_hwk), na.rm=TRUE)*1.1))
   lines(t_grid, mu_hwk, lwd=2, col=col_hawkes, lty="dashed")
   abline(v=tau_hwk, col=col_cp, lty="dotted", lwd=1.5)
-  legend("topright", legend=c("NHPP","Hawkes M3","CP tau1/tau2"),
+  legend("topright", legend=c("NHPP","Hawkes M3",expression("CP"~tau[1]*"/"*tau[2])),
          col=c(col_nhpp,col_hawkes,col_cp),
          lty=c("solid","dashed","dotted"), lwd=2, cex=0.8)
 }
@@ -234,7 +224,7 @@ plot_acumulada_hawkes_2cp <- function(n_modelo,
   lines(t_grid, banda$lo, lwd=1, col=col_hawkes, lty="dashed")
   lines(t_grid, banda$hi, lwd=1, col=col_hawkes, lty="dashed")
   abline(v=tau, col=col_cp, lty="dotted", lwd=1.5)
-  legend("topleft", legend=c("Observed","Hawkes M(t)","95% CI","CP tau1/tau2"),
+  legend("topleft", legend=c("Observed",expression("Hawkes"~M(t)),"95% CI",expression("CP"~tau[1]*"/"*tau[2])),
          col=c(col_obs,col_hawkes,col_hawkes,col_cp),
          lty=c("dashed","solid","dashed","dotted"), lwd=2, cex=0.8)
   sdm <- sum(abs(acum_obs[d] - banda$mean[d]))
@@ -297,7 +287,7 @@ plot_acumulada_comparacion_2cp <- function(n_modelo,
   lines(t_grid, banda_hwk$hi, lwd=1, col=col_hawkes, lty="dashed")
   abline(v=tau_h, col=col_cp, lty="dotted", lwd=1.5)
   legend("topleft",
-         legend=c("Observed","NHPP","NHPP 95% CI","Hawkes M3","Hawkes 95% CI","CP tau1/tau2"),
+         legend=c("Observed","NHPP","NHPP 95% CI","Hawkes M3","Hawkes 95% CI",expression("CP"~tau[1]*"/"*tau[2])),
          col=c(col_obs,col_nhpp,col_nhpp,col_hawkes,col_hawkes,col_cp),
          lty=c("dashed","solid","dashed","solid","dashed","dotted"), lwd=2, cex=0.8)
   sdm_nhpp   <- sum(abs(acum_obs[d] - banda_nhpp$mean[d]))
@@ -314,24 +304,48 @@ load("NHPP_2cp.RData"); load("hawkes_2cp.RData")
 dir_out <- "08_resultados_graficas/nhpp_vs_hawkes_2cp"
 y_names <- c("PM2.5 Col 37 Bog","PM2.5 Col 37 Med","PM2.5 WHO 25 Bog","PM2.5 WHO 25 Med")
 
-png(file.path(dir_out,"lambda_hawkes_2cp.png"), width=2400, height=1800, res=200)
-par(mfrow=c(2,2), mar=c(4,4,2,1))
-for (i in 1:4) plot_lambda_hawkes_2cp(n_modelo=i, di=di, y_name=y_names[i], grilla_paso=5)
+# Índices por umbral
+idx_col <- 1:2   # Col 37
+idx_who <- 3:4   # WHO 25
+
+png(file.path(dir_out,"lambda_hawkes_2cp_col.png"), width=2400, height=900, res=200)
+par(mfrow=c(1,2), mar=c(4,4,2,1))
+for (i in idx_col) plot_lambda_hawkes_2cp(n_modelo=i, di=di, y_name=y_names[i], grilla_paso=5)
 par(mfrow=c(1,1)); dev.off()
 
-png(file.path(dir_out,"baseline_nhpp_vs_hawkes_2cp.png"), width=2400, height=1800, res=200)
-par(mfrow=c(2,2), mar=c(4,4,2,1))
-for (i in 1:4) plot_baseline_comparison_2cp(n_modelo=i, y_name=y_names[i])
+png(file.path(dir_out,"lambda_hawkes_2cp_who.png"), width=2400, height=900, res=200)
+par(mfrow=c(1,2), mar=c(4,4,2,1))
+for (i in idx_who) plot_lambda_hawkes_2cp(n_modelo=i, di=di, y_name=y_names[i], grilla_paso=5)
 par(mfrow=c(1,1)); dev.off()
 
-png(file.path(dir_out,"acumulada_hawkes_2cp.png"), width=2400, height=1800, res=200)
-par(mfrow=c(2,2), mar=c(4,4,2,1))
-for (i in 1:4) plot_acumulada_hawkes_2cp(n_modelo=i, di=di, y_name=y_names[i])
+png(file.path(dir_out,"baseline_nhpp_vs_hawkes_2cp_col.png"), width=2400, height=900, res=200)
+par(mfrow=c(1,2), mar=c(4,4,2,1))
+for (i in idx_col) plot_baseline_comparison_2cp(n_modelo=i, y_name=y_names[i])
 par(mfrow=c(1,1)); dev.off()
 
-png(file.path(dir_out,"comparacion_Mt_nhpp_vs_hawkes_2cp.png"), width=2400, height=1800, res=200)
-par(mfrow=c(2,2), mar=c(4,4,2,1))
-for (i in 1:4) plot_acumulada_comparacion_2cp(n_modelo=i, di=di, y_name=y_names[i])
+png(file.path(dir_out,"baseline_nhpp_vs_hawkes_2cp_who.png"), width=2400, height=900, res=200)
+par(mfrow=c(1,2), mar=c(4,4,2,1))
+for (i in idx_who) plot_baseline_comparison_2cp(n_modelo=i, y_name=y_names[i])
+par(mfrow=c(1,1)); dev.off()
+
+png(file.path(dir_out,"acumulada_hawkes_2cp_col.png"), width=2400, height=900, res=200)
+par(mfrow=c(1,2), mar=c(4,4,2,1))
+for (i in idx_col) plot_acumulada_hawkes_2cp(n_modelo=i, di=di, y_name=y_names[i])
+par(mfrow=c(1,1)); dev.off()
+
+png(file.path(dir_out,"acumulada_hawkes_2cp_who.png"), width=2400, height=900, res=200)
+par(mfrow=c(1,2), mar=c(4,4,2,1))
+for (i in idx_who) plot_acumulada_hawkes_2cp(n_modelo=i, di=di, y_name=y_names[i])
+par(mfrow=c(1,1)); dev.off()
+
+png(file.path(dir_out,"comparacion_Mt_nhpp_vs_hawkes_2cp_col.png"), width=2400, height=900, res=200)
+par(mfrow=c(1,2), mar=c(4,4,2,1))
+for (i in idx_col) plot_acumulada_comparacion_2cp(n_modelo=i, di=di, y_name=y_names[i])
+par(mfrow=c(1,1)); dev.off()
+
+png(file.path(dir_out,"comparacion_Mt_nhpp_vs_hawkes_2cp_who.png"), width=2400, height=900, res=200)
+par(mfrow=c(1,2), mar=c(4,4,2,1))
+for (i in idx_who) plot_acumulada_comparacion_2cp(n_modelo=i, di=di, y_name=y_names[i])
 par(mfrow=c(1,1)); dev.off()
 
 cat("\nGraficas guardadas en:", dir_out, "\n")

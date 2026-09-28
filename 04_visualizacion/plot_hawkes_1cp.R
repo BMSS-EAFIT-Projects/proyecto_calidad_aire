@@ -1,14 +1,6 @@
 # =============================================================================
 # Visualización Hawkes M2 - 1 Change Point
-# =============================================================================
-# CONVENCIÓN DE TIEMPO:
-#   BUGS estima beta[k] con tiempo ABSOLUTO en todos los segmentos:
-#     Seg 1: (tau[1]/beta[1])^alpha[1]
-#     Seg 2: (T/beta[2])^alpha[2] - (tau[1]/beta[2])^alpha[2]
-#   En R se usa la misma convención:
-#     M_k(t) = (t_end/beta[k])^alpha[k] - (lo[k]/beta[k])^alpha[k]
-#   mu_k(t) = (alpha[k]/beta[k]) * (t/beta[k])^(alpha[k]-1)  [t absoluto]
-# =============================================================================
+
 
 # --------------------------------------------------------------------------
 # Auxiliar: lambda(t | H_t) puntual — 1 CP
@@ -301,24 +293,48 @@ load("NHPP_1cp.RData"); load("hawkes_1cp.RData")
 dir_out <- "08_resultados_graficas/nhpp_vs_hawkes_1cp"
 y_names <- c("PM2.5 Col 37 Bog","PM2.5 Col 37 Med","PM2.5 WHO 25 Bog","PM2.5 WHO 25 Med")
 
-png(file.path(dir_out,"lambda_hawkes_1cp.png"), width=2400, height=1800, res=200)
-par(mfrow=c(2,2), mar=c(4,4,2,1))
-for (i in 1:4) plot_lambda_hawkes_1cp(n_modelo=i, di=di, y_name=y_names[i], grilla_paso=5)
+# Índices por umbral
+idx_col <- 1:2   # Col 37
+idx_who <- 3:4   # WHO 25
+
+png(file.path(dir_out,"lambda_hawkes_1cp_col.png"), width=2400, height=900, res=200)
+par(mfrow=c(1,2), mar=c(4,4,2,1))
+for (i in idx_col) plot_lambda_hawkes_1cp(n_modelo=i, di=di, y_name=y_names[i], grilla_paso=5)
 par(mfrow=c(1,1)); dev.off()
 
-png(file.path(dir_out,"baseline_nhpp_vs_hawkes_1cp.png"), width=2400, height=1800, res=200)
-par(mfrow=c(2,2), mar=c(4,4,2,1))
-for (i in 1:4) plot_baseline_comparison_1cp(n_modelo=i, y_name=y_names[i])
+png(file.path(dir_out,"lambda_hawkes_1cp_who.png"), width=2400, height=900, res=200)
+par(mfrow=c(1,2), mar=c(4,4,2,1))
+for (i in idx_who) plot_lambda_hawkes_1cp(n_modelo=i, di=di, y_name=y_names[i], grilla_paso=5)
 par(mfrow=c(1,1)); dev.off()
 
-png(file.path(dir_out,"acumulada_hawkes_1cp.png"), width=2400, height=1800, res=200)
-par(mfrow=c(2,2), mar=c(4,4,2,1))
-for (i in 1:4) plot_acumulada_hawkes_1cp(n_modelo=i, di=di, y_name=y_names[i])
+png(file.path(dir_out,"baseline_nhpp_vs_hawkes_1cp_col.png"), width=2400, height=900, res=200)
+par(mfrow=c(1,2), mar=c(4,4,2,1))
+for (i in idx_col) plot_baseline_comparison_1cp(n_modelo=i, y_name=y_names[i])
 par(mfrow=c(1,1)); dev.off()
 
-png(file.path(dir_out,"comparacion_Mt_nhpp_vs_hawkes_1cp.png"), width=2400, height=1800, res=200)
-par(mfrow=c(2,2), mar=c(4,4,2,1))
-for (i in 1:4) plot_acumulada_comparacion_1cp(n_modelo=i, di=di, y_name=y_names[i])
+png(file.path(dir_out,"baseline_nhpp_vs_hawkes_1cp_who.png"), width=2400, height=900, res=200)
+par(mfrow=c(1,2), mar=c(4,4,2,1))
+for (i in idx_who) plot_baseline_comparison_1cp(n_modelo=i, y_name=y_names[i])
+par(mfrow=c(1,1)); dev.off()
+
+png(file.path(dir_out,"acumulada_hawkes_1cp_col.png"), width=2400, height=900, res=200)
+par(mfrow=c(1,2), mar=c(4,4,2,1))
+for (i in idx_col) plot_acumulada_hawkes_1cp(n_modelo=i, di=di, y_name=y_names[i])
+par(mfrow=c(1,1)); dev.off()
+
+png(file.path(dir_out,"acumulada_hawkes_1cp_who.png"), width=2400, height=900, res=200)
+par(mfrow=c(1,2), mar=c(4,4,2,1))
+for (i in idx_who) plot_acumulada_hawkes_1cp(n_modelo=i, di=di, y_name=y_names[i])
+par(mfrow=c(1,1)); dev.off()
+
+png(file.path(dir_out,"comparacion_Mt_nhpp_vs_hawkes_1cp_col.png"), width=2400, height=900, res=200)
+par(mfrow=c(1,2), mar=c(4,4,2,1))
+for (i in idx_col) plot_acumulada_comparacion_1cp(n_modelo=i, di=di, y_name=y_names[i])
+par(mfrow=c(1,1)); dev.off()
+
+png(file.path(dir_out,"comparacion_Mt_nhpp_vs_hawkes_1cp_who.png"), width=2400, height=900, res=200)
+par(mfrow=c(1,2), mar=c(4,4,2,1))
+for (i in idx_who) plot_acumulada_comparacion_1cp(n_modelo=i, di=di, y_name=y_names[i])
 par(mfrow=c(1,1)); dev.off()
 
 cat("\nGraficas guardadas en:", dir_out, "\n")
